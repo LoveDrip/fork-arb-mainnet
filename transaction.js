@@ -1,5 +1,5 @@
 const { ethers, network } = require("hardhat");
-const {BigNumber} = require('ethers')
+const {BigNumber} = require("bignumber.js");
 
 
 
@@ -29,8 +29,8 @@ async function getGainsPrice() {
     const pair = new ethers.Contract(pairAddress, pairABI, provider)
     const price = await pair.latestAnswer() // 8 decimal -> 10 decimal
     
-
-    return BigInt(price);
+    const num = new BigNumber(price)
+    return num;
 
 }
 
@@ -50,12 +50,18 @@ async function main() {
 
     const price = await getGainsPrice();
 
+  
+
     const convPrice = parseInt(ethers.parseUnits(price.toString(), 8));
+    
     const tp = convPrice + (0.01 * convPrice * (15/5));
     const tpConv = parseFloat(tp).toFixed(4)
 
-    const contractPrice = price * 100;
+    const contractPrice =  price.mul(new BigNumber(10).pow(10));
+    const floor = Math.floor(contractPrice)
     const contractTp = (tpConv * 1e10);
+
+    console.log(`contract price: ${floor}`);
 
     const tradeTuple = {
         'trader': mimic,
@@ -63,7 +69,7 @@ async function main() {
         'index': 0,  //tradeIndex
         'initialPosToken': 0,
         'positionSizeDai': ethers.parseUnits('2000', 18).toString(),  // collateral in 1e18
-        'openPrice': contractPrice.toString(),
+        'openPrice': BigInt(floor),
         'buy': true,
         'leverage': 5,  //leverage adjustable by slider on frontend
         'tp': contractTp.toString(),
@@ -79,11 +85,11 @@ async function main() {
     )
     console.log(daiTransaction)
 
-    // const trade = await gns.connect(impersonate).openTrade(
-    //     tradeTuple, 0, 0, '12492725505', '0x0000000000000000000000000000000000000000'
-    // )
+    const trade = await gns.connect(impersonate).openTrade(
+        tradeTuple, 0, 0, '12492725505', '0x0000000000000000000000000000000000000000'
+    )
 
-    // console.log(trade)
+    console.log(trade)
 
    
 
