@@ -1,5 +1,6 @@
 const { ethers, network } = require("hardhat");
 const {BigNumber} = require("bignumber.js");
+const helpers = require("@nomicfoundation/hardhat-toolbox/network-helpers")
 
 
 
@@ -38,7 +39,9 @@ async function getGainsPrice() {
 
 async function main() {
 
-    const impersonate = await ethers.getImpersonatedSigner(mimic)
+    await helpers.impersonateAccount(mimic);
+    const impersonate = await ethers.getSigner(mimic);
+
 
     console.log(
         "Vitalik account before transaction",
@@ -50,18 +53,21 @@ async function main() {
 
     const price = await getGainsPrice();
 
-  
+    // const convPrice = parseInt(ethers.parseUnits(price.toString(), 8));
 
-    const convPrice = parseInt(ethers.parseUnits(price.toString(), 8));
+
+    const convPrice = price / (10 ** 8);
+    const tp = convPrice + (0.01 * convPrice * (15 / 5));
+    console.log(`tp: ${tp}`)
+    const tpCov = tp * (10 ** 10)
+
+    const contractPrice =  convPrice * (10 ** 10);
+    // const floor = Math.floor(contractPrice);
+
+
+    console.log(`contract price: ${contractPrice}`);
+    console.log(`tp conversion: ${tpCov}`)
     
-    const tp = convPrice + (0.01 * convPrice * (15/5));
-    const tpConv = parseFloat(tp).toFixed(4)
-
-    const contractPrice =  price.mul(new BigNumber(10).pow(10));
-    const floor = Math.floor(contractPrice)
-    const contractTp = (tpConv * 1e10);
-
-    console.log(`contract price: ${floor}`);
 
     const tradeTuple = {
         'trader': mimic,
@@ -69,30 +75,30 @@ async function main() {
         'index': 0,  //tradeIndex
         'initialPosToken': 0,
         'positionSizeDai': ethers.parseUnits('2000', 18).toString(),  // collateral in 1e18
-        'openPrice': BigInt(floor),
+        'openPrice': BigInt(contractPrice),
         'buy': true,
         'leverage': 5,  //leverage adjustable by slider on frontend
-        'tp': contractTp.toString(),
+        'tp': BigInt(tpCov),
         'sl': 0
     }
 
     console.log(contractPrice)
-    console.log(contractTp)
+    
 
     const daiTransaction = await dai.connect(impersonate).approve(
         gainsAddress,
         ethers.parseUnits('2000', 18).toString()
     )
-    console.log(daiTransaction)
+    const daiReceipt = await daiTransaction.wait()
+    console.log(daiReceipt.blockNumber)
 
     const trade = await gns.connect(impersonate).openTrade(
         tradeTuple, 0, 0, '12492725505', '0x0000000000000000000000000000000000000000'
     )
-
-    console.log(trade)
+    const tradeReceipt = await trade.wait()
+    console.log(tradeReceipt.blockNumber)
 
    
-
 
 
 }
